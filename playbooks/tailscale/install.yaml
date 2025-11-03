@@ -1,0 +1,59 @@
+- name: Install Tailscale
+  hosts: ubuntu
+  become: true
+  gather_facts: true
+
+  vars:
+    ubuntu_codename: "{{ ansible_facts.lsb.codename }}"
+    tailscale_keyring_path: /usr/share/keyrings/tailscale-archive-keyring.gpg
+
+  tasks:
+    - name: Check if tailscale is present
+      ansible.builtin.command: bash -lc 'command -v tailscale'
+      register: tailscale_check
+      changed_when: false
+      failed_when: false
+
+    # If found: say so, then end the play right away
+    - name: Tailscale already installed — stop play
+      when: tailscale_check.rc == 0
+      block:
+        - ansible.builtin.debug:
+            msg: "Tailscale is already installed."
+        - meta: end_play
+
+    # If not found: do the install (and any other tasks you need)
+    - name: Install Tailscale
+      when: tailscale_check.rc != 0
+      block:
+        # https://tailscale.com/download/linux        
+        - name: Print architecture variables
+          ansible.builtin.debug:
+            msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}"
+
+        - name: Ensure keyrings directory exists
+          ansible.builtin.file:
+            path: /usr/share/keyrings
+            state: directory
+            mode: "0755"
+
+        - name: Add Tailscale GPG key (binary keyring)
+          ansible.builtin.get_url:
+            url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ubuntu_codename }}.noarmor.gpg"
+            dest: "{{ tailscale_keyring_path }}"
+            mode: "0644"
+
+        - name: Add Tailscale APT repository
+          ansible.builtin.apt_repository:
+            repo: "deb [signed-by={{ tailscale_keyring_path }}] https://pkgs.tailscale.com/stable/ubuntu {{ ubuntu_codename }} main"
+            filename: "tailscale"
+            state: present
+
+        - name: Install tailscale
+          ansible.builtin.apt:
+            name: tailscale
+            state: present
+            update_cache: true
+
+        - ansible.builtin.debug:
+            msg: "Run `sudo tailscale up --accept-routes` manually to complete setup."

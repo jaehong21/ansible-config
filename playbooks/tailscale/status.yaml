@@ -1,0 +1,19 @@
+- name: Check tailscale status
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check if tailscaled service is running
+      ansible.builtin.systemd_service:
+        name: tailscaled
+        enabled: true
+        state: started
+
+    - name: Collect tailscale IPv4
+      ansible.builtin.command: tailscale ip -4
+      register: tailscale_ip
+      ignore_errors: true
+
+    - name: Show tailscale IP status
+      ansible.builtin.debug:
+        msg: >-
+          {{ tailscale_ip.stdout if tailscale_ip.rc == 0 else 'Tailscale status failed or Tailscale is not running' }}

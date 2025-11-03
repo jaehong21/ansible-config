@@ -1,0 +1,19 @@
+- name: Setup berry hosts
+  hosts: berry
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Install packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - git
+          - gpg
+          - htop
+          - nfs-common
+          - sudo
+          - wget
+        state: present
+        update_cache: true
+

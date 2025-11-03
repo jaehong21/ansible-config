@@ -1,0 +1,89 @@
+- name: Add k3s-agent to existing k3s cluster
+  hosts: berry
+  serial: 1
+  become: true
+  gather_facts: false
+
+  vars:
+    k3s_version: v1.33.4+k3s1
+    k3s_config_dir: /etc/rancher/k3s
+    k3s_config_path: /etc/rancher/k3s/config.yaml
+    k3s_install_sh: /usr/local/bin/k3s-install.sh
+    k3s_server_url: "https://kube.jaehong21.com:6443"
+    k3s_flannel_iface: tailscale0
+    k3s_node_zone: home
+    k3s_node_instance_family: berry
+
+  handlers:
+    - name: restart k3s-agent
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: restarted
+        daemon_reload: true
+
+  tasks:
+    - name: Load SOPS secrets (all keys become vars)
+      community.sops.load_vars:
+        file: "{{ inventory_dir }}/secrets/encrypted.yaml"
+
+    - name: Ensure k3s config directory exists
+      ansible.builtin.file:
+        path: "{{ k3s_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write k3s agent config.yaml (server/token/flannel-iface)
+      ansible.builtin.copy:
+        dest: "{{ k3s_config_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          token: {{ secrets.k3s.token }}
+          server: "{{ k3s_server_url }}"
+          flannel-iface: {{ k3s_flannel_iface }}
+          node-label:
+            - "node.jaehong21.com/zone={{ k3s_node_zone }}"
+            - "node.jaehong21.com/instance-family={{ k3s_node_instance_family }}"
+      no_log: true
+      notify: restart k3s-agent
+
+    - name: Download official K3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: "{{ k3s_install_sh }}"
+        mode: "0755"
+        force: true
+
+    - name: Detect current k3s version (if installed)
+      ansible.builtin.command: k3s --version
+      register: k3s_version_current
+      changed_when: false
+      failed_when: false
+
+    - name: Decide if install/upgrade is needed
+      ansible.builtin.set_fact:
+        k3s_needs_install: "{{ (k3s_version_current.rc != 0) or (k3s_version not in (k3s_version_current.stdout | default(''))) }}"
+
+    - name: Install/upgrade K3s agent via install script (uses config.yaml)
+      ansible.builtin.command: "{{ k3s_install_sh }}"
+      environment:
+        INSTALL_K3S_VERSION: "{{ k3s_version }}"
+        INSTALL_K3S_EXEC: "agent"
+      when: k3s_needs_install
+
+    - name: Ensure k3s-agent is enabled and running
+      ansible.builtin.systemd:
+        name: k3s-agent
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    # TODO: use ansible way
+    # NOTE: default cmdline.txt
+    # console=serial0,115200 multipath=off dwc_otg.lpm_enable=0 console=tty1 root=LABEL=writable rootfstype=ext4 rootwait fixrtc cfg80211.ieee80211_regdom=GB
+    - name: Check `/boot/firmware/cmdline.txt`
+      ansible.builtin.debug:
+        msg: add `cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1` if not present in /boot/firmware/cmdline.txt

@@ -1,0 +1,14 @@
+all:
+  children:
+    # --- Instance Family ---
+    berry:
+      hosts:
+        berry[2:3]:
+    # --- OS ---
+    ubuntu:
+      hosts:
+        berry[2:3]:
+        # desk1:
+    nixos:
+      hosts:
+        oracle[1:3]:

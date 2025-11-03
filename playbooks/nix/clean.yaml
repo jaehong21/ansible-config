@@ -1,0 +1,13 @@
+- name: Run nh clean
+  hosts: nixos
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Execute nh clean all
+      ansible.builtin.command: nh clean all --keep 2
+      register: nh_result
+      failed_when: nh_result.rc != 0
+
+    - name: Show nh clean stdout
+      ansible.builtin.debug:
+        msg: "{{ nh_result.stdout_lines }}"

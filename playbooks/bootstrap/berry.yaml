@@ -1,0 +1,30 @@
+- name: Bootstrap berry hosts
+  hosts: berry
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Gather systemd service facts
+      ansible.builtin.service_facts:
+
+    - name: Check if tailscaled is running
+      set_fact:
+        tailscale_running: "{{ 'tailscaled.service' in ansible_facts.services and ansible_facts.services['tailscaled.service'].state == 'running' }}"
+
+    # If not running: say so, then end the play right away
+    - name: Tailscale not running — stop play
+      when: not tailscale_running
+      block:
+        - ansible.builtin.debug:
+            msg: "Tailscale is not running. Please start Tailscale before running this playbook."
+        - meta: end_play
+
+- name: Setup berry hosts
+  import_playbook: ../apt/berry.yaml
+
+- name: Install docker
+  import_playbook: ../docker/install.yaml
+
+- name: Setup k3s-agent
+  import_playbook: ../k3s-agent/install.yaml
+
