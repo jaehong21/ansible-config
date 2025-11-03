@@ -11,4 +11,5 @@ all:
         # desk1:
     nixos:
       hosts:
+        core1:
         oracle[1:3]:
