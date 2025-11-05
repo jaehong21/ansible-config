@@ -55,5 +55,28 @@
             state: present
             update_cache: true
 
+        # https://tailscale.com/kb/1019/subnets?tab=linux#enable-ip-forwarding
+        # Enable IP forwarding (for subnet router or exit nodes)
+
+        # - name: Check if /etc/sysctl.d exists
+        #   ansible.builtin.stat:
+        #     path: /etc/sysctl.d
+        #   register: sysctl_dir
+        #
+        # - name: Configure IP forwarding
+        #   ansible.builtin.copy:
+        #     dest: /etc/sysctl.d/99-tailscale.conf
+        #     content: |
+        #       net.ipv4.ip_forward = 1
+        #       net.ipv6.conf.all.forwarding = 1
+        #     mode: "0644"
+        #   when: sysctl_dir.stat.exists and sysctl_dir.stat.isdir
+        #
+        # - name: Apply sysctl changes
+        #   ansible.builtin.command: sysctl -p "{{ tailscale_sysctl_conf }}"
+        #   register: sysctl_result
+        #   changed_when: "'= 1' in sysctl_result.stdout"
+        #   when: sysctl_dir.stat.exists and sysctl_dir.stat.isdir
+
         - ansible.builtin.debug:
-            msg: "Run `sudo tailscale up --accept-routes` manually to complete setup."
+            msg: "Run `sudo tailscale up --login-server <headscale-url> --accept-routes` manually to complete setup."
