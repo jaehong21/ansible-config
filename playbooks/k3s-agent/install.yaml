@@ -5,14 +5,12 @@
   gather_facts: false
 
   vars:
-    k3s_version: v1.33.4+k3s1
+    k3s_version: v1.34.1+k3s1
     k3s_config_dir: /etc/rancher/k3s
     k3s_config_path: /etc/rancher/k3s/config.yaml
     k3s_install_sh: /usr/local/bin/k3s-install.sh
-    k3s_server_url: "https://kube.jaehong21.com:6443"
+    k3s_server_url: "https://k3s.jaehong21.com:6443"
     k3s_flannel_iface: tailscale0
-    k3s_node_zone: home
-    k3s_node_instance_family: berry
 
   handlers:
     - name: restart k3s-agent
@@ -41,12 +39,9 @@
         group: root
         mode: "0600"
         content: |
-          token: {{ secrets.k3s.token }}
+          token: {{ secrets.k3s.token_2 }}
           server: "{{ k3s_server_url }}"
           flannel-iface: {{ k3s_flannel_iface }}
-          node-label:
-            - "node.jaehong21.com/zone={{ k3s_node_zone }}"
-            - "node.jaehong21.com/instance-family={{ k3s_node_instance_family }}"
       no_log: true
       notify: restart k3s-agent
 
